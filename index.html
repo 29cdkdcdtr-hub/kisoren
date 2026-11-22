@@ -1,0 +1,377 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#111214">
+<!-- 名前：ここの「基礎練」と、下の APP_NAME をそろえる（LINE のカードはプログラムを読まないため、ここにも書く） -->
+<meta id="apptitle" name="apple-mobile-web-app-title" content="基礎練">
+<title>基礎練</title>
+<meta name="description" content="BPMを決めてスタートするだけ。4分→8分→三連符→16分の基礎練メトロノーム">
+<!-- ホーム画面のアイコン -->
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" type="image/png" href="icon.png">
+<!-- LINE などに URL を貼ったときのカード。公開先が kisoren 以外になったら、下の2つのアドレスを差しかえる -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="基礎練">
+<meta property="og:description" content="BPMを決めてスタートするだけ。4分→8分→三連符→16分の基礎練メトロノーム">
+<meta property="og:url" content="https://29cdkdcdtr-hub.github.io/kisoren/">
+<meta property="og:image" content="https://29cdkdcdtr-hub.github.io/kisoren/ogp.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root{
+    --bg:#111214; --panel:#1b1d21; --line:#2c2f35;
+    --ink:#f4f1ea; --dim:#8d929b;
+    --accent:#ffb020;   /* 小節の1拍目・いまの音符 */
+    --beat:#4fd1c5;     /* 拍 */
+    --stop:#ff5a4e; --go:#2fbf71;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Hiragino Kaku Gothic ProN","Yu Gothic UI","Meiryo",sans-serif;
+    -webkit-user-select:none;user-select:none;overscroll-behavior:none}
+  body{display:flex;justify-content:center}
+  .app{width:100%;max-width:480px;height:100vh;height:100dvh;display:flex;flex-direction:column;
+    padding:calc(env(safe-area-inset-top) + 10px) 16px calc(env(safe-area-inset-bottom) + 12px);gap:10px}
+  header{display:flex;justify-content:space-between;align-items:baseline;font-size:14px;color:var(--dim)}
+  header b{color:var(--ink);font-size:15px;letter-spacing:.04em}
+
+  /* いまの音符 */
+  .now{flex:1 1 auto;min-height:0;background:var(--panel);border:1px solid var(--line);border-radius:18px;
+    display:flex;flex-direction:column;align-items:center;justify-content:center;padding:10px;gap:4px;position:relative}
+  .lab{font-size:13px;color:var(--dim);letter-spacing:.1em}
+  .now .glyph{font-size:clamp(40px,12vh,96px);line-height:1;color:var(--accent);font-family:"Segoe UI Symbol","Apple Symbols",serif}
+  .now .name{font-size:clamp(30px,7.2vh,54px);font-weight:800;line-height:1.1;text-align:center}
+  .now .read{font-size:clamp(18px,3.6vh,26px);color:var(--dim);letter-spacing:.2em}
+  .now.countin .glyph,.now.countin .name{color:var(--beat)}
+  .subs{display:flex;gap:6px;height:12px;margin-top:4px}
+  .subs i{width:12px;height:12px;border-radius:50%;background:var(--line)}
+  .subs i.on{background:var(--ink)}
+
+  /* 小節・拍 */
+  .pos{display:grid;grid-template-columns:1fr 1.6fr;gap:10px}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:8px 10px;text-align:center}
+  .bar .big{font-size:clamp(34px,7vh,52px);font-weight:800;line-height:1.05}
+  .bar .big small{font-size:.45em;color:var(--dim);font-weight:600}
+  .beats{display:flex;justify-content:space-around;align-items:center;height:calc(100% - 18px)}
+  .beats span{width:clamp(38px,8vh,56px);height:clamp(38px,8vh,56px);border-radius:50%;border:3px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-size:clamp(18px,3.4vh,26px);font-weight:800;color:var(--dim)}
+  .beats span.on{background:var(--beat);border-color:var(--beat);color:#0b0c0e}
+  .beats span.on.one{background:var(--accent);border-color:var(--accent)}
+
+  /* 次の音符 */
+  .next{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .next .txt{font-size:clamp(22px,4.4vh,32px);font-weight:800}
+  .next .txt .g{color:var(--dim);font-weight:400;margin-right:6px;font-family:"Segoe UI Symbol","Apple Symbols",serif}
+  .next.soon{border-color:var(--accent)}
+  .next.soon .lab{color:var(--accent)}
+
+  /* BPM */
+  .bpm{display:grid;grid-template-columns:1fr 1.3fr 1fr;gap:10px;align-items:stretch}
+  .bpm button{font-size:44px;font-weight:700;border-radius:16px;border:1px solid var(--line);background:var(--panel);color:var(--ink);
+    min-height:clamp(64px,10vh,84px);touch-action:manipulation;cursor:pointer}
+  .bpm button:active{background:#2a2d33}
+  .bpm .val{display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .bpm .val b{font-size:clamp(40px,8vh,60px);line-height:1;font-variant-numeric:tabular-nums}
+  .bpm .val span{font-size:13px;color:var(--dim);letter-spacing:.15em}
+
+  .go{width:100%;min-height:clamp(76px,12vh,104px);border:0;border-radius:20px;font-size:clamp(30px,5vh,40px);font-weight:800;
+    letter-spacing:.1em;background:var(--go);color:#06140c;touch-action:manipulation;cursor:pointer}
+  .go.running{background:var(--stop);color:#1c0503}
+  .hint{font-size:12px;color:var(--dim);text-align:center;line-height:1.5;min-height:1.5em}
+  .hint.warn{color:var(--accent)}
+</style>
+</head>
+<body>
+<div class="app">
+  <header><b id="appname"></b><span id="lap">4分の4拍子・12小節で1周</span></header>
+
+  <section class="now" id="now">
+    <div class="lab">いまの音符</div>
+    <div class="glyph" id="nowGlyph">♩</div>
+    <div class="name" id="nowName">4分音符</div>
+    <div class="read" id="nowRead">タン</div>
+    <div class="subs" id="subs"></div>
+  </section>
+
+  <section class="pos">
+    <div class="box bar"><div class="lab">小節</div><div class="big" id="barNo">1<small> / 2</small></div></div>
+    <div class="box"><div class="lab">拍</div>
+      <div class="beats" id="beats"><span>1</span><span>2</span><span>3</span><span>4</span></div></div>
+  </section>
+
+  <section class="box next" id="nextBox">
+    <div class="lab">つぎ</div>
+    <div class="txt" id="nextTxt"><span class="g">♪</span>8分音符</div>
+  </section>
+
+  <section class="bpm">
+    <button id="minus" aria-label="BPMを下げる">−</button>
+    <div class="val"><b id="bpmVal">60</b><span>BPM</span></div>
+    <button id="plus" aria-label="BPMを上げる">＋</button>
+  </section>
+
+  <button class="go" id="go">スタート</button>
+  <div class="hint" id="hint">音が出ないときは、マナーモードを切って音量を上げてください</div>
+</div>
+
+<script>
+/* ===== 名前（上の <title> などの「基礎練」とそろえる） ===== */
+const APP_NAME = "基礎練";
+/* ============================================================= */
+
+const CFG = {
+  bpmMin: 40, bpmMax: 200, bpmStart: 60,
+  barsPerStage: 2, beatsPerBar: 4, countInBars: 1,
+  // 音の高さ（Hz）と大きさ：小節の1拍目 ＞ 拍の頭 ＞ 間の細かい音
+  sound: {
+    one:  { freq: 2093, gain: 0.9,  len: 0.06 },
+    beat: { freq: 1568, gain: 0.55, len: 0.05 },
+    sub:  { freq: 1047, gain: 0.22, len: 0.035 },
+  },
+};
+const STAGES = [
+  { name: "4分音符",  read: "タン",       glyph: "♩",  div: 1 },
+  { name: "8分音符",  read: "タ タ",      glyph: "♪",  div: 2 },
+  { name: "三連符",   read: "タ タ タ",   glyph: "³♪", div: 3 },
+  { name: "16分音符", read: "タカ タカ",  glyph: "♬",  div: 4 },
+  { name: "三連符",   read: "タ タ タ",   glyph: "³♪", div: 3 },
+  { name: "8分音符",  read: "タ タ",      glyph: "♪",  div: 2 },
+];
+const BARS_PER_LAP = STAGES.length * CFG.barsPerStage; // 12
+
+/* ---- 名前を画面・タブ・ホーム画面に反映 ---- */
+document.title = APP_NAME;
+document.getElementById("appname").textContent = APP_NAME;
+document.getElementById("apptitle").setAttribute("content", APP_NAME);
+
+/* ---- 画面の部品 ---- */
+const $ = id => document.getElementById(id);
+const el = { now:$("now"), glyph:$("nowGlyph"), name:$("nowName"), read:$("nowRead"), subs:$("subs"),
+  bar:$("barNo"), beats:[...$("beats").children], nextBox:$("nextBox"), nextTxt:$("nextTxt"),
+  bpm:$("bpmVal"), go:$("go"), hint:$("hint"), lap:$("lap") };
+
+let bpm = CFG.bpmStart;
+let running = false;
+
+/* =========================================================
+   音：Web Audio で「ピッ」を作る（音のファイルは使わない）
+   タイミング：音を少し先まで予約しておく方式（ずれにくい）
+   ========================================================= */
+let ctx = null;
+let silentAudio = null;  // iPhone のマナーモード対策用（無音の音を流す）
+let timer = null;        // 予約係を呼ぶタイマー
+let nextTime = 0;        // 次の音の時刻
+let beatStart = 0;       // いまの拍の頭の時刻
+let p = null;            // いまの位置
+const queue = [];        // 画面に出す予定
+const LOOKAHEAD = 0.15;  // 何秒先まで予約するか
+const TICK_MS = 25;
+
+function makeSilentWavURL(){
+  // 0.5秒の無音 WAV をその場で作る
+  const rate = 8000, n = 4000, buf = new ArrayBuffer(44 + n), v = new DataView(buf);
+  const w = (o, s) => { for (let i = 0; i < s.length; i++) v.setUint8(o + i, s.charCodeAt(i)); };
+  w(0,"RIFF"); v.setUint32(4,36+n,true); w(8,"WAVE"); w(12,"fmt ");
+  v.setUint32(16,16,true); v.setUint16(20,1,true); v.setUint16(22,1,true);
+  v.setUint32(24,rate,true); v.setUint32(28,rate,true); v.setUint16(32,1,true); v.setUint16(34,8,true);
+  w(36,"data"); v.setUint32(40,n,true);
+  for (let i = 0; i < n; i++) v.setUint8(44 + i, 128);
+  return URL.createObjectURL(new Blob([buf], { type: "audio/wav" }));
+}
+
+function unlockAudio(){
+  // iPhone：マナーモードでも音を出すための設定（対応している iOS だけ効く）
+  try { if (navigator.audioSession) navigator.audioSession.type = "playback"; } catch(e){}
+  // 古い iOS 向け：無音の音をくり返し流しておくと、マナーモードでも音が出るようになる
+  try {
+    if (!silentAudio) {
+      silentAudio = new Audio(makeSilentWavURL());
+      silentAudio.loop = true;
+      silentAudio.setAttribute("playsinline", "");
+    }
+    const pr = silentAudio.play(); if (pr && pr.catch) pr.catch(()=>{});
+  } catch(e){}
+  if (!ctx) {
+    const AC = window.AudioContext || window.webkitAudioContext;
+    ctx = new AC({ latencyHint: "interactive" });
+  }
+  if (ctx.state !== "running") ctx.resume();
+  // 最初のタップの中で一度だけ鳴らしておく（スマホの決まりごと対策）
+  const b = ctx.createBuffer(1, 1, 22050), s = ctx.createBufferSource();
+  s.buffer = b; s.connect(ctx.destination); s.start(0);
+}
+
+function beep(time, kind){
+  const c = CFG.sound[kind];
+  const o = ctx.createOscillator(), g = ctx.createGain();
+  o.type = "square";
+  o.frequency.setValueAtTime(c.freq, time);
+  g.gain.setValueAtTime(0.0001, time);
+  g.gain.exponentialRampToValueAtTime(c.gain * 0.35, time + 0.002);
+  g.gain.exponentialRampToValueAtTime(0.0001, time + c.len);
+  o.connect(g); g.connect(ctx.destination);
+  o.start(time); o.stop(time + c.len + 0.02);
+}
+
+/* 位置：countIn（カウント中か）, bar（周の中の小節 0〜11）, beat（0〜3）, sub（拍の中の何番目）, lap（何周目） */
+function divOf(pos){ return pos.countIn ? 1 : STAGES[Math.floor(pos.bar / CFG.barsPerStage)].div; }
+
+function advance(){
+  const spb = 60 / bpm;               // BPM の変更は次の拍の頭から効く
+  const div = divOf(p);
+  p.sub++;
+  if (p.sub >= div) {
+    p.sub = 0; beatStart += spb; p.beat++;
+    if (p.beat >= CFG.beatsPerBar) {
+      p.beat = 0;
+      if (p.countIn) { p.cbar++; if (p.cbar >= CFG.countInBars) { p.countIn = false; p.bar = 0; } }
+      else { p.bar++; if (p.bar >= BARS_PER_LAP) { p.bar = 0; p.lap++; } }
+    }
+  }
+  // 毎回「拍の頭 ＋ 何分の何拍」で計算するので、細かい音符でもずれがたまらない
+  nextTime = beatStart + (p.sub * (60 / bpm)) / divOf(p);
+}
+
+function schedule(){
+  if (!running) return;
+  // 画面が隠れていた等で時間が飛んだら、少し先から数え直す（音がまとめて鳴るのを防ぐ）
+  if (nextTime < ctx.currentTime - 0.05) {
+    const shift = ctx.currentTime + 0.05 - nextTime;
+    nextTime += shift; beatStart += shift;
+  }
+  while (nextTime < ctx.currentTime + LOOKAHEAD) {
+    const kind = p.sub > 0 ? "sub" : (p.beat === 0 ? "one" : "beat");
+    beep(nextTime, kind);
+    queue.push({ t: nextTime, countIn: p.countIn, bar: p.bar, beat: p.beat, sub: p.sub, div: divOf(p), lap: p.lap });
+    advance();
+  }
+}
+
+/* タイマーは別の作業場（Worker）で動かす：画面の処理が重くても予約が遅れにくい */
+let worker = null;
+try {
+  const src = "let id=null;onmessage=e=>{if(e.data==='start'){clearInterval(id);id=setInterval(()=>postMessage(0)," + TICK_MS + ");}else{clearInterval(id);id=null;}};";
+  worker = new Worker(URL.createObjectURL(new Blob([src], { type: "text/javascript" })));
+  worker.onmessage = schedule;
+} catch(e){ worker = null; }
+
+/* ---- 画面が暗くならないようにする ---- */
+let wakeLock = null;
+async function keepAwake(){
+  if (!("wakeLock" in navigator)) { setHint("この機種では画面が暗くなるのを止められません。設定の「自動ロック」を長めにしてください", true); return; }
+  try {
+    wakeLock = await navigator.wakeLock.request("screen");
+    wakeLock.addEventListener("release", () => { wakeLock = null; });
+  } catch(e){ /* 電池が少ない時などは断られることがある */ }
+}
+function releaseAwake(){ try { if (wakeLock) wakeLock.release(); } catch(e){} wakeLock = null; }
+
+/* ---- スタート／ストップ ---- */
+function start(){
+  unlockAudio();
+  running = true;
+  p = { countIn: CFG.countInBars > 0, cbar: 0, bar: 0, beat: 0, sub: 0, lap: 1 };
+  queue.length = 0;
+  beatStart = nextTime = ctx.currentTime + 0.12;
+  el.go.textContent = "ストップ"; el.go.classList.add("running");
+  setHint("");
+  keepAwake();
+  schedule();
+  if (worker) worker.postMessage("start"); else timer = setInterval(schedule, TICK_MS);
+  requestAnimationFrame(draw);
+}
+function stop(){
+  running = false;
+  if (worker) worker.postMessage("stop"); if (timer) { clearInterval(timer); timer = null; }
+  queue.length = 0;
+  releaseAwake();
+  try { if (silentAudio) silentAudio.pause(); } catch(e){}
+  el.go.textContent = "スタート"; el.go.classList.remove("running");
+  setHint("音が出ないときは、マナーモードを切って音量を上げてください");
+  showIdle();
+}
+
+/* ---- 画面の表示 ---- */
+function setHint(t, warn){ el.hint.textContent = t; el.hint.classList.toggle("warn", !!warn); }
+function stageText(s){ return '<span class="g">' + s.glyph + '</span>' + s.name; }
+function drawSubs(div, sub){
+  if (el.subs.childElementCount !== div) el.subs.innerHTML = "<i></i>".repeat(div);
+  [...el.subs.children].forEach((d, i) => d.classList.toggle("on", i === sub));
+}
+function show(ev){
+  const beats = el.beats;
+  beats.forEach((b, i) => { b.classList.toggle("on", i === ev.beat); b.classList.toggle("one", i === 0); });
+  if (ev.countIn) {
+    el.now.classList.add("countin");
+    el.glyph.textContent = String(ev.beat + 1);
+    el.name.textContent = "カウント";
+    el.read.textContent = "4つ数えたらスタート";
+    el.bar.innerHTML = "<small>じゅんび</small>";
+    el.nextTxt.innerHTML = stageText(STAGES[0]);
+    el.nextBox.classList.add("soon");
+    el.subs.innerHTML = "";
+    el.lap.textContent = "カウントイン";
+    return;
+  }
+  const si = Math.floor(ev.bar / CFG.barsPerStage);
+  const s = STAGES[si], n = STAGES[(si + 1) % STAGES.length];
+  const barInStage = ev.bar % CFG.barsPerStage + 1;
+  el.now.classList.remove("countin");
+  el.glyph.textContent = s.glyph; el.name.textContent = s.name; el.read.textContent = s.read;
+  el.bar.innerHTML = barInStage + "<small> / " + CFG.barsPerStage + "</small>";
+  el.nextTxt.innerHTML = stageText(n);
+  el.nextBox.classList.toggle("soon", barInStage === CFG.barsPerStage); // 段の最後の小節は「つぎ」を目立たせる
+  drawSubs(ev.div, ev.sub);
+  el.lap.textContent = ev.lap + "周目・" + (ev.bar + 1) + " / " + BARS_PER_LAP + "小節";
+}
+function showIdle(){
+  el.now.classList.remove("countin");
+  el.glyph.textContent = STAGES[0].glyph; el.name.textContent = STAGES[0].name; el.read.textContent = STAGES[0].read;
+  el.bar.innerHTML = "1<small> / 2</small>";
+  el.beats.forEach(b => b.classList.remove("on"));
+  el.nextTxt.innerHTML = stageText(STAGES[1]);
+  el.nextBox.classList.remove("soon");
+  el.subs.innerHTML = "";
+  el.lap.textContent = "4分の4拍子・12小節で1周";
+}
+function draw(){
+  if (!running) return;
+  // 音が実際に耳に届く時刻に合わせて画面を変える
+  const lat = (ctx.outputLatency || ctx.baseLatency || 0);
+  const now = ctx.currentTime - lat;
+  let last = null;
+  while (queue.length && queue[0].t <= now) last = queue.shift();
+  if (last) show(last);
+  requestAnimationFrame(draw);
+}
+
+/* ---- BPM ボタン（長押しで連続して変わる） ---- */
+function setBpm(v){ bpm = Math.max(CFG.bpmMin, Math.min(CFG.bpmMax, v)); el.bpm.textContent = bpm; }
+function holdButton(btn, step){
+  let t1 = null, t2 = null;
+  const end = () => { clearTimeout(t1); clearInterval(t2); t1 = t2 = null; };
+  btn.addEventListener("pointerdown", e => {
+    e.preventDefault(); end(); setBpm(bpm + step);
+    t1 = setTimeout(() => { t2 = setInterval(() => setBpm(bpm + step), 80); }, 450);
+  });
+  ["pointerup","pointerleave","pointercancel"].forEach(n => btn.addEventListener(n, end));
+}
+holdButton($("minus"), -1);
+holdButton($("plus"), +1);
+
+el.go.addEventListener("click", () => running ? stop() : start());
+
+/* 別のアプリに切りかえたら止める（戻ったときに音が乱れないように） */
+document.addEventListener("visibilitychange", () => { if (document.hidden && running) stop(); });
+
+setBpm(CFG.bpmStart);
+showIdle();
+</script>
+</body>
+</html>
